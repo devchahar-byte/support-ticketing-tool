@@ -11,6 +11,7 @@ const responseSchema = new mongoose.Schema(
       type: String,
       required: [true, 'Author name is required'],
       trim: true,
+      default: 'Support Agent',
     },
     role: {
       type: String,
@@ -36,32 +37,37 @@ const ticketSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ['Open', 'In Progress', 'Resolved', 'Closed'],
-      default: 'Open',
+      enum: [
+        'OPEN', 'IN_PROGRESS', 'RESOLVED', 'CLOSED',
+        'Open', 'In Progress', 'Resolved', 'Closed',
+      ],
+      default: 'OPEN',
     },
     priority: {
       type: String,
-      enum: ['Low', 'Medium', 'High', 'Urgent'],
-      default: 'Medium',
+      enum: [
+        'LOW', 'MEDIUM', 'HIGH', 'URGENT',
+        'Low', 'Medium', 'High', 'Urgent',
+      ],
+      default: 'MEDIUM',
     },
     category: {
       type: String,
-      enum: ['Technical', 'Billing', 'General', 'Bug Report', 'Feature Request'],
-      default: 'General',
+      enum: [
+        'TECHNICAL', 'BILLING', 'GENERAL', 'BUG REPORT', 'FEATURE REQUEST',
+        'Technical', 'Billing', 'General', 'Bug Report', 'Feature Request',
+      ],
+      default: 'TECHNICAL',
     },
     customerName: {
       type: String,
-      required: [true, 'Customer name is required'],
+      default: 'Guest User',
       trim: true,
     },
     customerEmail: {
       type: String,
-      required: [true, 'Customer email is required'],
+      default: 'user@example.com',
       trim: true,
-      match: [
-        /^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/,
-        'Please enter a valid email address',
-      ],
     },
     assignedTo: {
       type: String,

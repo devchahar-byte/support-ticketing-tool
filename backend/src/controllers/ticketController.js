@@ -5,21 +5,21 @@ const { getDBStatus } = require('../config/db');
 let memoryTickets = [
   {
     _id: '65f1a1000000000000000001',
-    title: 'Payment gateway fails during checkout with 502 error',
-    description: 'Customers report getting a 502 Bad Gateway response when attempting Stripe card checkout.',
-    status: 'Open',
-    priority: 'Urgent',
-    category: 'Billing',
+    title: 'Unable to login',
+    description: 'Login issue with 500 internal server error during SSO',
+    priority: 'HIGH',
+    status: 'OPEN',
+    category: 'TECHNICAL',
     customerName: 'Aarav Sharma',
     customerEmail: 'aarav.sharma@example.com',
     assignedTo: 'Vikram Singh',
-    tags: ['stripe', 'checkout', 'p0'],
+    tags: ['auth', 'sso'],
     responses: [
       {
         _id: 'res-101',
         author: 'Vikram Singh',
         role: 'Support Agent',
-        message: 'Investigating API latency spikes with the gateway provider.',
+        message: 'Investigating SSO provider latency.',
         createdAt: new Date(Date.now() - 3600000).toISOString(),
       },
     ],
@@ -28,87 +28,33 @@ let memoryTickets = [
   },
   {
     _id: '65f1a1000000000000000002',
-    title: 'Cannot export CSV report from Dashboard analytics',
-    description: 'Clicking Export CSV triggers an infinite spinner and no file downloads.',
-    status: 'In Progress',
-    priority: 'High',
-    category: 'Bug Report',
+    title: 'Invoice calculation discrepancy',
+    description: 'Taxes on invoice #4812 were calculated at 22% instead of 18%',
+    priority: 'MEDIUM',
+    status: 'IN_PROGRESS',
+    category: 'BILLING',
     customerName: 'Priya Patel',
     customerEmail: 'priya.patel@example.com',
     assignedTo: 'Neha Gupta',
-    tags: ['export', 'analytics'],
-    responses: [
-      {
-        _id: 'res-102',
-        author: 'Neha Gupta',
-        role: 'Support Agent',
-        message: 'Identified the issue in the streaming worker. Preparing hotfix.',
-        createdAt: new Date(Date.now() - 5400000).toISOString(),
-      },
-    ],
+    tags: ['tax', 'invoice'],
+    responses: [],
     createdAt: new Date(Date.now() - 14400000).toISOString(),
     updatedAt: new Date(Date.now() - 5400000).toISOString(),
   },
   {
     _id: '65f1a1000000000000000003',
-    title: 'Request dark mode theme support for the customer portal',
-    description: 'We would love to see a native dark theme toggle in the UI for night shifts.',
-    status: 'Open',
-    priority: 'Low',
-    category: 'Feature Request',
-    customerName: 'Rohit Verma',
-    customerEmail: 'rohit.v@example.com',
-    assignedTo: 'Unassigned',
-    tags: ['ui', 'theme'],
-    responses: [],
-    createdAt: new Date(Date.now() - 28800000).toISOString(),
-    updatedAt: new Date(Date.now() - 28800000).toISOString(),
-  },
-  {
-    _id: '65f1a1000000000000000004',
-    title: 'Reset password link expired too quickly (within 2 minutes)',
-    description: 'User received the reset email but link was already invalid when opened.',
-    status: 'Resolved',
-    priority: 'Medium',
-    category: 'Technical',
+    title: 'General question about office locations',
+    description: 'Looking for contact numbers of the Bangalore development center',
+    priority: 'LOW',
+    status: 'RESOLVED',
+    category: 'GENERAL',
     customerName: 'Sunita Rao',
     customerEmail: 'sunita.rao@example.com',
     assignedTo: 'Vikram Singh',
-    tags: ['auth', 'security'],
-    responses: [
-      {
-        _id: 'res-103',
-        author: 'Vikram Singh',
-        role: 'Support Agent',
-        message: 'Updated token TTL from 120s to 15 minutes. Tested and verified.',
-        createdAt: new Date(Date.now() - 86400000).toISOString(),
-      },
-    ],
-    createdAt: new Date(Date.now() - 172800000).toISOString(),
-    updatedAt: new Date(Date.now() - 86400000).toISOString(),
-  },
-  {
-    _id: '65f1a1000000000000000005',
-    title: 'Inquiry regarding Enterprise plan custom SLA terms',
-    description: 'Interested in upgrading 50 seats, need details on dedicated support managers and 99.99% SLA.',
-    status: 'Closed',
-    priority: 'Medium',
-    category: 'General',
-    customerName: 'Ananya Deshmukh',
-    customerEmail: 'ananya.d@enterprise-corp.com',
-    assignedTo: 'Neha Gupta',
-    tags: ['sales', 'enterprise'],
-    responses: [
-      {
-        _id: 'res-104',
-        author: 'Neha Gupta',
-        role: 'Support Agent',
-        message: 'Enterprise agreement and customized SLA document shared via email.',
-        createdAt: new Date(Date.now() - 259200000).toISOString(),
-      },
-    ],
-    createdAt: new Date(Date.now() - 345600000).toISOString(),
-    updatedAt: new Date(Date.now() - 259200000).toISOString(),
+    tags: ['general'],
+    responses: [],
+    createdAt: new Date(Date.now() - 86400000).toISOString(),
+    updatedAt: new Date(Date.now() - 43200000).toISOString(),
   },
 ];
 
@@ -119,7 +65,10 @@ const generateId = () => {
   return timestamp + random;
 };
 
-// @desc    Get all tickets with search, filtering, and sorting
+// Normalize values (e.g. 'high' -> 'HIGH', 'Open' -> 'OPEN')
+const normalizeUpper = (str) => (str ? str.toString().trim().toUpperCase().replace(/\s+/g, '_') : str);
+
+// @desc    Get all tickets with optional search, filter, and pagination
 // @route   GET /api/tickets
 // @access  Public
 const getTickets = async (req, res, next) => {
@@ -129,9 +78,15 @@ const getTickets = async (req, res, next) => {
     if (getDBStatus()) {
       const query = {};
 
-      if (status && status !== 'All') query.status = status;
-      if (priority && priority !== 'All') query.priority = priority;
-      if (category && category !== 'All') query.category = category;
+      if (status && status !== 'All') {
+        query.status = { $in: [status, status.toUpperCase(), status.replace(/_/g, ' ')] };
+      }
+      if (priority && priority !== 'All') {
+        query.priority = { $in: [priority, priority.toUpperCase()] };
+      }
+      if (category && category !== 'All') {
+        query.category = { $in: [category, category.toUpperCase()] };
+      }
 
       if (search && search.trim()) {
         const searchRegex = new RegExp(search.trim(), 'i');
@@ -167,13 +122,16 @@ const getTickets = async (req, res, next) => {
     let filtered = [...memoryTickets];
 
     if (status && status !== 'All') {
-      filtered = filtered.filter((t) => t.status.toLowerCase() === status.toLowerCase());
+      const norm = normalizeUpper(status);
+      filtered = filtered.filter((t) => normalizeUpper(t.status) === norm);
     }
     if (priority && priority !== 'All') {
-      filtered = filtered.filter((t) => t.priority.toLowerCase() === priority.toLowerCase());
+      const norm = normalizeUpper(priority);
+      filtered = filtered.filter((t) => normalizeUpper(t.priority) === norm);
     }
     if (category && category !== 'All') {
-      filtered = filtered.filter((t) => t.category.toLowerCase() === category.toLowerCase());
+      const norm = normalizeUpper(category);
+      filtered = filtered.filter((t) => normalizeUpper(t.category) === norm);
     }
 
     if (search && search.trim()) {
@@ -182,12 +140,11 @@ const getTickets = async (req, res, next) => {
         (t) =>
           t.title.toLowerCase().includes(q) ||
           t.description.toLowerCase().includes(q) ||
-          t.customerName.toLowerCase().includes(q) ||
-          t.customerEmail.toLowerCase().includes(q)
+          (t.customerName && t.customerName.toLowerCase().includes(q))
       );
     }
 
-    // Sorting
+    // Sort
     filtered.sort((a, b) => {
       const valA = a[sortBy] || '';
       const valB = b[sortBy] || '';
@@ -225,21 +182,11 @@ const getTicketStats = async (req, res, next) => {
     }
 
     const total = tickets.length;
-    const open = tickets.filter((t) => t.status === 'Open').length;
-    const inProgress = tickets.filter((t) => t.status === 'In Progress').length;
-    const resolved = tickets.filter((t) => t.status === 'Resolved').length;
-    const closed = tickets.filter((t) => t.status === 'Closed').length;
-    const urgent = tickets.filter((t) => t.priority === 'Urgent').length;
-
-    const byCategory = tickets.reduce((acc, t) => {
-      acc[t.category] = (acc[t.category] || 0) + 1;
-      return acc;
-    }, {});
-
-    const byPriority = tickets.reduce((acc, t) => {
-      acc[t.priority] = (acc[t.priority] || 0) + 1;
-      return acc;
-    }, {});
+    const open = tickets.filter((t) => ['OPEN', 'Open'].includes(t.status)).length;
+    const inProgress = tickets.filter((t) => ['IN_PROGRESS', 'In Progress', 'IN PROGRESS'].includes(t.status)).length;
+    const resolved = tickets.filter((t) => ['RESOLVED', 'Resolved'].includes(t.status)).length;
+    const closed = tickets.filter((t) => ['CLOSED', 'Closed'].includes(t.status)).length;
+    const urgent = tickets.filter((t) => ['URGENT', 'Urgent'].includes(t.priority)).length;
 
     res.status(200).json({
       success: true,
@@ -250,8 +197,6 @@ const getTicketStats = async (req, res, next) => {
         resolved,
         closed,
         urgent,
-        byCategory,
-        byPriority,
       },
     });
   } catch (error) {
@@ -269,14 +214,20 @@ const getTicketById = async (req, res, next) => {
     if (getDBStatus()) {
       const ticket = await Ticket.findById(id);
       if (!ticket) {
-        return res.status(404).json({ success: false, message: `Ticket not found with id ${id}` });
+        return res.status(404).json({
+          success: false,
+          message: `Ticket not found with id: ${id}`,
+        });
       }
       return res.status(200).json({ success: true, data: ticket });
     }
 
     const ticket = memoryTickets.find((t) => t._id.toString() === id.toString());
     if (!ticket) {
-      return res.status(404).json({ success: false, message: `Ticket not found with id ${id}` });
+      return res.status(404).json({
+        success: false,
+        message: `Ticket not found with id: ${id}`,
+      });
     }
 
     res.status(200).json({ success: true, data: ticket });
@@ -290,54 +241,49 @@ const getTicketById = async (req, res, next) => {
 // @access  Public
 const createTicket = async (req, res, next) => {
   try {
-    const { title, description, priority, category, customerName, customerEmail, assignedTo, tags } = req.body;
+    const { title, description, priority, status, category, customerName, customerEmail, assignedTo, tags } = req.body;
 
-    if (!title || !description || !customerName || !customerEmail) {
-      return res.status(400).json({
-        success: false,
-        message: 'Please provide all required fields: title, description, customerName, customerEmail',
-      });
-    }
+    const ticketData = {
+      title: title.trim(),
+      description: description.trim(),
+      priority: priority || 'MEDIUM',
+      status: status || 'OPEN',
+      category: category || 'TECHNICAL',
+      customerName: (customerName && customerName.trim()) || 'Guest User',
+      customerEmail: (customerEmail && customerEmail.trim()) || 'user@example.com',
+      assignedTo: (assignedTo && assignedTo.trim()) || 'Unassigned',
+      tags: Array.isArray(tags) ? tags : [],
+      responses: [],
+    };
 
     if (getDBStatus()) {
-      const ticket = await Ticket.create({
-        title,
-        description,
-        priority: priority || 'Medium',
-        category: category || 'General',
-        customerName,
-        customerEmail,
-        assignedTo: assignedTo || 'Unassigned',
-        tags: Array.isArray(tags) ? tags : [],
-        responses: [],
+      const ticket = await Ticket.create(ticketData);
+      return res.status(201).json({
+        success: true,
+        message: 'Ticket created successfully',
+        data: ticket,
       });
-      return res.status(201).json({ success: true, message: 'Ticket created successfully', data: ticket });
     }
 
     const newTicket = {
       _id: generateId(),
-      title,
-      description,
-      status: 'Open',
-      priority: priority || 'Medium',
-      category: category || 'General',
-      customerName,
-      customerEmail,
-      assignedTo: assignedTo || 'Unassigned',
-      tags: Array.isArray(tags) ? tags : [],
-      responses: [],
+      ...ticketData,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
 
     memoryTickets.unshift(newTicket);
-    res.status(201).json({ success: true, message: 'Ticket created successfully', data: newTicket });
+    res.status(201).json({
+      success: true,
+      message: 'Ticket created successfully',
+      data: newTicket,
+    });
   } catch (error) {
     next(error);
   }
 };
 
-// @desc    Update a ticket
+// @desc    Update a ticket by ID
 // @route   PUT /api/tickets/:id
 // @access  Public
 const updateTicket = async (req, res, next) => {
@@ -352,14 +298,24 @@ const updateTicket = async (req, res, next) => {
       });
 
       if (!ticket) {
-        return res.status(404).json({ success: false, message: `Ticket not found with id ${id}` });
+        return res.status(404).json({
+          success: false,
+          message: `Ticket not found with id: ${id}`,
+        });
       }
-      return res.status(200).json({ success: true, message: 'Ticket updated successfully', data: ticket });
+      return res.status(200).json({
+        success: true,
+        message: 'Ticket updated successfully',
+        data: ticket,
+      });
     }
 
     const index = memoryTickets.findIndex((t) => t._id.toString() === id.toString());
     if (index === -1) {
-      return res.status(404).json({ success: false, message: `Ticket not found with id ${id}` });
+      return res.status(404).json({
+        success: false,
+        message: `Ticket not found with id: ${id}`,
+      });
     }
 
     const existing = memoryTickets[index];
@@ -370,13 +326,17 @@ const updateTicket = async (req, res, next) => {
     };
 
     memoryTickets[index] = updated;
-    res.status(200).json({ success: true, message: 'Ticket updated successfully', data: updated });
+    res.status(200).json({
+      success: true,
+      message: 'Ticket updated successfully',
+      data: updated,
+    });
   } catch (error) {
     next(error);
   }
 };
 
-// @desc    Delete a ticket
+// @desc    Delete a ticket by ID
 // @route   DELETE /api/tickets/:id
 // @access  Public
 const deleteTicket = async (req, res, next) => {
@@ -386,25 +346,37 @@ const deleteTicket = async (req, res, next) => {
     if (getDBStatus()) {
       const ticket = await Ticket.findByIdAndDelete(id);
       if (!ticket) {
-        return res.status(404).json({ success: false, message: `Ticket not found with id ${id}` });
+        return res.status(404).json({
+          success: false,
+          message: `Ticket not found with id: ${id}`,
+        });
       }
-      return res.status(200).json({ success: true, message: 'Ticket deleted successfully', data: {} });
+      return res.status(200).json({
+        success: true,
+        message: 'Ticket deleted successfully',
+      });
     }
 
     const initialLen = memoryTickets.length;
     memoryTickets = memoryTickets.filter((t) => t._id.toString() !== id.toString());
 
     if (memoryTickets.length === initialLen) {
-      return res.status(404).json({ success: false, message: `Ticket not found with id ${id}` });
+      return res.status(404).json({
+        success: false,
+        message: `Ticket not found with id: ${id}`,
+      });
     }
 
-    res.status(200).json({ success: true, message: 'Ticket deleted successfully', data: {} });
+    res.status(200).json({
+      success: true,
+      message: 'Ticket deleted successfully',
+    });
   } catch (error) {
     next(error);
   }
 };
 
-// @desc    Add a response / comment to a ticket
+// @desc    Add response to ticket
 // @route   POST /api/tickets/:id/responses
 // @access  Public
 const addTicketResponse = async (req, res, next) => {
@@ -412,21 +384,21 @@ const addTicketResponse = async (req, res, next) => {
     const { id } = req.params;
     const { message, author, role = 'Support Agent', statusUpdate } = req.body;
 
-    if (!message || !author) {
+    if (!message) {
       return res.status(400).json({
         success: false,
-        message: 'Message and author are required to post a response',
+        message: 'Response message is required',
       });
     }
 
     if (getDBStatus()) {
       const ticket = await Ticket.findById(id);
       if (!ticket) {
-        return res.status(404).json({ success: false, message: `Ticket not found with id ${id}` });
+        return res.status(404).json({ success: false, message: `Ticket not found with id: ${id}` });
       }
 
-      ticket.responses.push({ message, author, role });
-      if (statusUpdate && ['Open', 'In Progress', 'Resolved', 'Closed'].includes(statusUpdate)) {
+      ticket.responses.push({ message, author: author || 'Support Agent', role });
+      if (statusUpdate) {
         ticket.status = statusUpdate;
       }
 
@@ -436,19 +408,19 @@ const addTicketResponse = async (req, res, next) => {
 
     const ticket = memoryTickets.find((t) => t._id.toString() === id.toString());
     if (!ticket) {
-      return res.status(404).json({ success: false, message: `Ticket not found with id ${id}` });
+      return res.status(404).json({ success: false, message: `Ticket not found with id: ${id}` });
     }
 
     const responseObj = {
       _id: 'res-' + Date.now(),
       message,
-      author,
+      author: author || 'Support Agent',
       role,
       createdAt: new Date().toISOString(),
     };
 
     ticket.responses.push(responseObj);
-    if (statusUpdate && ['Open', 'In Progress', 'Resolved', 'Closed'].includes(statusUpdate)) {
+    if (statusUpdate) {
       ticket.status = statusUpdate;
     }
     ticket.updatedAt = new Date().toISOString();

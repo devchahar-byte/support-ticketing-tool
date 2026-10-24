@@ -103,7 +103,7 @@
         ],
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"title\": \"Webhook signature verification failed\",\n  \"description\": \"Unable to verify HMAC signature received on payment event webhooks.\",\n  \"priority\": \"High\",\n  \"category\": \"Technical\",\n  \"customerName\": \"Aman Verma\",\n  \"customerEmail\": \"aman.v@example.com\",\n  \"assignedTo\": \"Vikram Singh\"\n}"
+          "raw": "{\n  \"title\": \"Unable to login\",\n  \"description\": \"Login issue\",\n  \"priority\": \"HIGH\",\n  \"status\": \"OPEN\",\n  \"category\": \"TECHNICAL\"\n}"
         },
         "url": {
           "raw": "{{baseUrl}}/tickets",

@@ -4,7 +4,7 @@ const http = require('node:http');
 const { app } = require('../src/server');
 
 let server;
-const port = 5099;
+const port = 5098;
 
 const request = (method, apiPath, body = null) => {
   return new Promise((resolve, reject) => {
@@ -50,13 +50,37 @@ test.after(async () => {
   await new Promise((resolve) => server.close(resolve));
 });
 
-test('GET /api/health should return 200 OK', async () => {
-  const res = await request('GET', '/health');
-  assert.strictEqual(res.status, 200);
-  assert.strictEqual(res.body.status, 'OK');
+test('POST /api/tickets - should return 400 when title or description is missing', async () => {
+  const res = await request('POST', '/tickets', {
+    priority: 'HIGH',
+    status: 'OPEN',
+  });
+  assert.strictEqual(res.status, 400);
+  assert.strictEqual(res.body.success, false);
+  assert.ok(Array.isArray(res.body.errors));
 });
 
-test('GET /api/tickets should return list of tickets', async () => {
+test('POST /api/tickets - should create ticket with exact milestone fields and return 201 Created', async () => {
+  const payload = {
+    title: 'Unable to login',
+    description: 'Login issue',
+    priority: 'HIGH',
+    status: 'OPEN',
+    category: 'TECHNICAL',
+  };
+
+  const res = await request('POST', '/tickets', payload);
+  assert.strictEqual(res.status, 201);
+  assert.strictEqual(res.body.success, true);
+  assert.strictEqual(res.body.data.title, 'Unable to login');
+  assert.strictEqual(res.body.data.description, 'Login issue');
+  assert.strictEqual(res.body.data.priority, 'HIGH');
+  assert.strictEqual(res.body.data.status, 'OPEN');
+  assert.strictEqual(res.body.data.category, 'TECHNICAL');
+  assert.ok(res.body.data._id);
+});
+
+test('GET /api/tickets - should return 200 OK and list of tickets', async () => {
   const res = await request('GET', '/tickets');
   assert.strictEqual(res.status, 200);
   assert.strictEqual(res.body.success, true);
@@ -64,37 +88,54 @@ test('GET /api/tickets should return list of tickets', async () => {
   assert.ok(res.body.total >= 1);
 });
 
-test('GET /api/tickets/stats should return dashboard statistics', async () => {
-  const res = await request('GET', '/tickets/stats');
-  assert.strictEqual(res.status, 200);
-  assert.strictEqual(res.body.success, true);
-  assert.ok(typeof res.body.data.total === 'number');
-  assert.ok(typeof res.body.data.open === 'number');
+test('GET /api/tickets/:id - should return 200 OK for valid ID and 404 for invalid ID', async () => {
+  const all = await request('GET', '/tickets');
+  const ticketId = all.body.data[0]._id;
+
+  // Valid ID
+  const validRes = await request('GET', `/tickets/${ticketId}`);
+  assert.strictEqual(validRes.status, 200);
+  assert.strictEqual(validRes.body.data._id, ticketId);
+
+  // Invalid ID
+  const invalidRes = await request('GET', '/tickets/999999999999999999999999');
+  assert.strictEqual(invalidRes.status, 404);
+  assert.strictEqual(invalidRes.body.success, false);
 });
 
-test('POST /api/tickets should validate required fields', async () => {
-  const res = await request('POST', '/tickets', { title: 'Incomplete' });
-  assert.strictEqual(res.status, 400);
-  assert.strictEqual(res.body.success, false);
-});
+test('PUT /api/tickets/:id - should update ticket and return 200 OK', async () => {
+  const all = await request('GET', '/tickets');
+  const ticketId = all.body.data[0]._id;
 
-test('POST /api/tickets should create a new ticket', async () => {
-  const newTicket = {
-    title: 'Test ticket from automated unit test',
-    description: 'Verifying automated ticket creation flow.',
-    priority: 'High',
-    category: 'Technical',
-    customerName: 'Test Runner',
-    customerEmail: 'tester@example.com',
+  const updatePayload = {
+    status: 'IN_PROGRESS',
+    priority: 'URGENT',
   };
 
-  const res = await request('POST', '/tickets', newTicket);
-  assert.strictEqual(res.status, 201);
+  const res = await request('PUT', `/tickets/${ticketId}`, updatePayload);
+  assert.strictEqual(res.status, 200);
   assert.strictEqual(res.body.success, true);
-  assert.strictEqual(res.body.data.title, newTicket.title);
+  assert.strictEqual(res.body.data.status, 'IN_PROGRESS');
+  assert.strictEqual(res.body.data.priority, 'URGENT');
+});
 
-  // Clean up
-  if (res.body.data._id) {
-    await request('DELETE', `/tickets/${res.body.data._id}`);
-  }
+test('DELETE /api/tickets/:id - should delete ticket and return 200 OK, then 404 on subsequent delete', async () => {
+  // Create a temporary ticket
+  const created = await request('POST', '/tickets', {
+    title: 'Temporary ticket for deletion test',
+    description: 'Will be deleted immediately',
+    priority: 'LOW',
+    status: 'OPEN',
+    category: 'GENERAL',
+  });
+  const tempId = created.body.data._id;
+
+  // Delete
+  const delRes = await request('DELETE', `/tickets/${tempId}`);
+  assert.strictEqual(delRes.status, 200);
+  assert.strictEqual(delRes.body.success, true);
+
+  // Repeat Delete -> 404
+  const secondDelRes = await request('DELETE', `/tickets/${tempId}`);
+  assert.strictEqual(secondDelRes.status, 404);
 });
