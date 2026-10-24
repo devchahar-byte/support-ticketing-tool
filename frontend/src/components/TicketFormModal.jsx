@@ -7,14 +7,16 @@ export default function TicketFormModal({
   onSubmit,
   initialData = null,
   isSubmitting = false,
+  apiErrors = [],
 }) {
   const isEditing = Boolean(initialData);
 
   const [formData, setFormData] = useState({
     title: '',
     description: '',
-    priority: 'Medium',
-    category: 'General',
+    priority: 'HIGH',
+    status: 'OPEN',
+    category: 'TECHNICAL',
     customerName: '',
     customerEmail: '',
     assignedTo: 'Unassigned',
@@ -27,8 +29,9 @@ export default function TicketFormModal({
       setFormData({
         title: initialData.title || '',
         description: initialData.description || '',
-        priority: initialData.priority || 'Medium',
-        category: initialData.category || 'General',
+        priority: initialData.priority || 'HIGH',
+        status: initialData.status || 'OPEN',
+        category: initialData.category || 'TECHNICAL',
         customerName: initialData.customerName || '',
         customerEmail: initialData.customerEmail || '',
         assignedTo: initialData.assignedTo || 'Unassigned',
@@ -37,8 +40,9 @@ export default function TicketFormModal({
       setFormData({
         title: '',
         description: '',
-        priority: 'Medium',
-        category: 'General',
+        priority: 'HIGH',
+        status: 'OPEN',
+        category: 'TECHNICAL',
         customerName: '',
         customerEmail: '',
         assignedTo: 'Unassigned',
@@ -53,12 +57,6 @@ export default function TicketFormModal({
     const newErrors = {};
     if (!formData.title.trim()) newErrors.title = 'Title is required';
     if (!formData.description.trim()) newErrors.description = 'Description is required';
-    if (!formData.customerName.trim()) newErrors.customerName = 'Customer name is required';
-    if (!formData.customerEmail.trim()) {
-      newErrors.customerEmail = 'Customer email is required';
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.customerEmail)) {
-      newErrors.customerEmail = 'Please provide a valid email address';
-    }
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -75,7 +73,7 @@ export default function TicketFormModal({
         {/* Modal Header */}
         <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
           <h2 className="text-lg font-bold text-slate-900">
-            {isEditing ? 'Edit Support Ticket' : 'Create New Support Ticket'}
+            {isEditing ? 'Edit Support Ticket' : 'Create Support Ticket (POST /api/tickets)'}
           </h2>
           <button
             onClick={onClose}
@@ -87,16 +85,31 @@ export default function TicketFormModal({
 
         {/* Form Body */}
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
+          {/* API Errors Banner */}
+          {apiErrors && apiErrors.length > 0 && (
+            <div className="p-3.5 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-700">
+              <div className="flex items-center space-x-1.5 font-bold mb-1">
+                <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+                <span>API Validation Error</span>
+              </div>
+              <ul className="list-disc list-inside space-y-0.5 pl-1">
+                {apiErrors.map((err, i) => (
+                  <li key={i}>{err}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+
           {/* Title */}
           <div>
             <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
-              Ticket Title <span className="text-rose-500">*</span>
+              Title <span className="text-rose-500">*</span>
             </label>
             <input
               type="text"
               value={formData.title}
               onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-              placeholder="e.g. Cannot process credit card transaction on checkout"
+              placeholder="e.g. Unable to login"
               className={`w-full px-3.5 py-2 text-sm bg-slate-50 border rounded-lg focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-500 transition ${
                 errors.title ? 'border-rose-400 bg-rose-50/30' : 'border-slate-200'
               }`}
@@ -112,13 +125,13 @@ export default function TicketFormModal({
           {/* Description */}
           <div>
             <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
-              Description & Steps to Reproduce <span className="text-rose-500">*</span>
+              Description <span className="text-rose-500">*</span>
             </label>
             <textarea
               rows={3}
               value={formData.description}
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-              placeholder="Provide a detailed explanation of the issue, error codes, and steps..."
+              placeholder="e.g. Login issue on authentication service"
               className={`w-full px-3.5 py-2 text-sm bg-slate-50 border rounded-lg focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-500 transition ${
                 errors.description ? 'border-rose-400 bg-rose-50/30' : 'border-slate-200'
               }`}
@@ -131,52 +144,7 @@ export default function TicketFormModal({
             )}
           </div>
 
-          {/* Customer Name & Email */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
-                Customer Name <span className="text-rose-500">*</span>
-              </label>
-              <input
-                type="text"
-                value={formData.customerName}
-                onChange={(e) => setFormData({ ...formData, customerName: e.target.value })}
-                placeholder="Aarav Sharma"
-                className={`w-full px-3.5 py-2 text-sm bg-slate-50 border rounded-lg focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-500 transition ${
-                  errors.customerName ? 'border-rose-400 bg-rose-50/30' : 'border-slate-200'
-                }`}
-              />
-              {errors.customerName && (
-                <p className="text-xs text-rose-500 mt-1 flex items-center space-x-1">
-                  <AlertCircle className="w-3 h-3" />
-                  <span>{errors.customerName}</span>
-                </p>
-              )}
-            </div>
-
-            <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
-                Customer Email <span className="text-rose-500">*</span>
-              </label>
-              <input
-                type="email"
-                value={formData.customerEmail}
-                onChange={(e) => setFormData({ ...formData, customerEmail: e.target.value })}
-                placeholder="aarav@example.com"
-                className={`w-full px-3.5 py-2 text-sm bg-slate-50 border rounded-lg focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-500 transition ${
-                  errors.customerEmail ? 'border-rose-400 bg-rose-50/30' : 'border-slate-200'
-                }`}
-              />
-              {errors.customerEmail && (
-                <p className="text-xs text-rose-500 mt-1 flex items-center space-x-1">
-                  <AlertCircle className="w-3 h-3" />
-                  <span>{errors.customerEmail}</span>
-                </p>
-              )}
-            </div>
-          </div>
-
-          {/* Priority & Category */}
+          {/* Priority & Status */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
@@ -185,15 +153,34 @@ export default function TicketFormModal({
               <select
                 value={formData.priority}
                 onChange={(e) => setFormData({ ...formData, priority: e.target.value })}
-                className="w-full px-3.5 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-500"
+                className="w-full px-3.5 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-500 font-medium"
               >
-                <option value="Low">Low</option>
-                <option value="Medium">Medium</option>
-                <option value="High">High</option>
-                <option value="Urgent">Urgent</option>
+                <option value="LOW">LOW</option>
+                <option value="MEDIUM">MEDIUM</option>
+                <option value="HIGH">HIGH</option>
+                <option value="URGENT">URGENT</option>
               </select>
             </div>
 
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
+                Status
+              </label>
+              <select
+                value={formData.status}
+                onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                className="w-full px-3.5 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-500 font-medium"
+              >
+                <option value="OPEN">OPEN</option>
+                <option value="IN_PROGRESS">IN_PROGRESS</option>
+                <option value="RESOLVED">RESOLVED</option>
+                <option value="CLOSED">CLOSED</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Category & Assigned To */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
                 Category
@@ -201,29 +188,55 @@ export default function TicketFormModal({
               <select
                 value={formData.category}
                 onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                className="w-full px-3.5 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-500"
+                className="w-full px-3.5 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-500 font-medium"
               >
-                <option value="General">General</option>
-                <option value="Technical">Technical</option>
-                <option value="Billing">Billing</option>
-                <option value="Bug Report">Bug Report</option>
-                <option value="Feature Request">Feature Request</option>
+                <option value="TECHNICAL">TECHNICAL</option>
+                <option value="BILLING">BILLING</option>
+                <option value="GENERAL">GENERAL</option>
               </select>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
+                Assigned Agent
+              </label>
+              <input
+                type="text"
+                value={formData.assignedTo}
+                onChange={(e) => setFormData({ ...formData, assignedTo: e.target.value })}
+                placeholder="Vikram Singh"
+                className="w-full px-3.5 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-500"
+              />
             </div>
           </div>
 
-          {/* Assigned Agent */}
-          <div>
-            <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
-              Assigned Support Agent
-            </label>
-            <input
-              type="text"
-              value={formData.assignedTo}
-              onChange={(e) => setFormData({ ...formData, assignedTo: e.target.value })}
-              placeholder="e.g. Vikram Singh, Neha Gupta, or Unassigned"
-              className="w-full px-3.5 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-500"
-            />
+          {/* Customer Name & Email (Optional) */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1">
+                Customer Name <span className="text-slate-400 font-normal">(Optional)</span>
+              </label>
+              <input
+                type="text"
+                value={formData.customerName}
+                onChange={(e) => setFormData({ ...formData, customerName: e.target.value })}
+                placeholder="Guest User"
+                className="w-full px-3.5 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-500"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1">
+                Customer Email <span className="text-slate-400 font-normal">(Optional)</span>
+              </label>
+              <input
+                type="email"
+                value={formData.customerEmail}
+                onChange={(e) => setFormData({ ...formData, customerEmail: e.target.value })}
+                placeholder="user@example.com"
+                className="w-full px-3.5 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-500"
+              />
+            </div>
           </div>
 
           {/* Modal Actions */}
@@ -239,9 +252,12 @@ export default function TicketFormModal({
             <button
               type="submit"
               disabled={isSubmitting}
-              className="px-5 py-2 text-sm font-semibold text-white bg-brand-600 hover:bg-brand-700 rounded-lg shadow-sm hover:shadow transition disabled:opacity-50"
+              className="px-5 py-2 text-sm font-semibold text-white bg-brand-600 hover:bg-brand-700 rounded-lg shadow-sm hover:shadow transition disabled:opacity-50 flex items-center space-x-2"
             >
-              {isSubmitting ? 'Saving...' : isEditing ? 'Update Ticket' : 'Create Ticket'}
+              {isSubmitting && (
+                <div className="w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+              )}
+              <span>{isSubmitting ? 'Saving...' : isEditing ? 'Update Ticket' : 'Create Ticket'}</span>
             </button>
           </div>
         </form>

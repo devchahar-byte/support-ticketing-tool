@@ -1,15 +1,17 @@
 import React from 'react';
-import { Clock, MessageSquare, User, MoreVertical, Edit2, Trash2, ArrowUpRight } from 'lucide-react';
+import { Clock, MessageSquare, Edit2, Trash2, ArrowUpRight } from 'lucide-react';
 
 export const getStatusBadge = (status) => {
-  switch (status) {
-    case 'Open':
+  const s = status ? status.toString().toUpperCase() : '';
+  switch (s) {
+    case 'OPEN':
       return 'bg-blue-50 text-blue-700 border-blue-200';
-    case 'In Progress':
+    case 'IN_PROGRESS':
+    case 'IN PROGRESS':
       return 'bg-amber-50 text-amber-700 border-amber-200';
-    case 'Resolved':
+    case 'RESOLVED':
       return 'bg-emerald-50 text-emerald-700 border-emerald-200';
-    case 'Closed':
+    case 'CLOSED':
       return 'bg-slate-100 text-slate-700 border-slate-300';
     default:
       return 'bg-slate-50 text-slate-700 border-slate-200';
@@ -17,14 +19,15 @@ export const getStatusBadge = (status) => {
 };
 
 export const getPriorityBadge = (priority) => {
-  switch (priority) {
-    case 'Urgent':
+  const p = priority ? priority.toString().toUpperCase() : '';
+  switch (p) {
+    case 'URGENT':
       return 'bg-rose-50 text-rose-700 border-rose-200';
-    case 'High':
+    case 'HIGH':
       return 'bg-orange-50 text-orange-700 border-orange-200';
-    case 'Medium':
+    case 'MEDIUM':
       return 'bg-blue-50 text-blue-700 border-blue-200';
-    case 'Low':
+    case 'LOW':
       return 'bg-slate-50 text-slate-600 border-slate-200';
     default:
       return 'bg-slate-50 text-slate-600 border-slate-200';
@@ -49,7 +52,11 @@ export default function TicketCard({
   onEdit,
   onDelete,
   onQuickStatusChange,
+  onQuickPriorityChange,
 }) {
+  const normalizedStatus = (ticket.status || 'OPEN').toUpperCase().replace(/\s+/g, '_');
+  const normalizedPriority = (ticket.priority || 'MEDIUM').toUpperCase();
+
   return (
     <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-xs hover:shadow-md transition-all flex flex-col justify-between group">
       <div>
@@ -57,20 +64,20 @@ export default function TicketCard({
         <div className="flex items-center justify-between gap-2 mb-3">
           <div className="flex items-center space-x-1.5 flex-wrap gap-y-1">
             <span
-              className={`text-[11px] font-semibold px-2.5 py-0.5 rounded-full border ${getStatusBadge(
+              className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full border ${getStatusBadge(
                 ticket.status
               )}`}
             >
-              {ticket.status}
+              {normalizedStatus}
             </span>
             <span
-              className={`text-[11px] font-semibold px-2 py-0.5 rounded-full border ${getPriorityBadge(
+              className={`text-[11px] font-bold px-2 py-0.5 rounded-full border ${getPriorityBadge(
                 ticket.priority
               )}`}
             >
-              {ticket.priority}
+              {normalizedPriority}
             </span>
-            <span className="text-[11px] text-slate-500 font-medium px-2 py-0.5 rounded-md bg-slate-100">
+            <span className="text-[11px] text-slate-500 font-semibold px-2 py-0.5 rounded-md bg-slate-100">
               {ticket.category}
             </span>
           </div>
@@ -104,10 +111,10 @@ export default function TicketCard({
             </div>
             <div className="truncate">
               <span className="font-semibold text-slate-800 block truncate">
-                {ticket.customerName}
+                {ticket.customerName || 'Guest User'}
               </span>
               <span className="text-[10px] text-slate-400 block truncate">
-                {ticket.customerEmail}
+                {ticket.customerEmail || 'user@example.com'}
               </span>
             </div>
           </div>
@@ -124,14 +131,15 @@ export default function TicketCard({
         <div className="flex items-center justify-between pt-2 border-t border-slate-50">
           {/* Quick status dropdown */}
           <select
-            value={ticket.status}
+            value={normalizedStatus}
             onChange={(e) => onQuickStatusChange(ticket._id, e.target.value)}
-            className="text-xs py-1 px-2 rounded-md bg-slate-50 border border-slate-200 text-slate-700 focus:outline-none focus:ring-1 focus:ring-brand-500 font-medium"
+            className="text-xs py-1 px-2 rounded-md bg-slate-50 border border-slate-200 text-slate-700 focus:outline-none focus:ring-1 focus:ring-brand-500 font-semibold"
+            title="Update Status via PUT /api/tickets/:id"
           >
-            <option value="Open">Open</option>
-            <option value="In Progress">In Progress</option>
-            <option value="Resolved">Resolved</option>
-            <option value="Closed">Closed</option>
+            <option value="OPEN">OPEN</option>
+            <option value="IN_PROGRESS">IN_PROGRESS</option>
+            <option value="RESOLVED">RESOLVED</option>
+            <option value="CLOSED">CLOSED</option>
           </select>
 
           {/* Action buttons */}
@@ -146,7 +154,7 @@ export default function TicketCard({
             <button
               onClick={() => onDelete(ticket)}
               className="p-1.5 rounded-md text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition"
-              title="Delete Ticket"
+              title="Delete Ticket via DELETE /api/tickets/:id"
             >
               <Trash2 className="w-3.5 h-3.5" />
             </button>

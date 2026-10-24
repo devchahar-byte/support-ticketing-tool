@@ -17,7 +17,10 @@ async function request(endpoint, options = {}) {
     const res = await fetch(url, config);
     const data = await res.json().catch(() => ({}));
     if (!res.ok) {
-      throw new Error(data.message || `Request failed with status ${res.status}`);
+      const error = new Error(data.message || `Request failed with status ${res.status}`);
+      error.status = res.status;
+      error.errors = data.errors || [];
+      throw error;
     }
     return data;
   } catch (error) {
@@ -33,7 +36,7 @@ export const api = {
   // Get metrics / stats
   getStats: () => request('/tickets/stats'),
 
-  // Get tickets with search and filters
+  // GET /api/tickets - Fetch tickets with search and filters
   getTickets: (params = {}) => {
     const query = new URLSearchParams();
     Object.entries(params).forEach(([key, value]) => {
@@ -45,30 +48,30 @@ export const api = {
     return request(`/tickets${queryString ? `?${queryString}` : ''}`);
   },
 
-  // Get single ticket by ID
+  // GET /api/tickets/:id - Fetch single ticket by ID
   getTicketById: (id) => request(`/tickets/${id}`),
 
-  // Create new ticket
+  // POST /api/tickets - Create new ticket
   createTicket: (ticketData) =>
     request('/tickets', {
       method: 'POST',
       body: JSON.stringify(ticketData),
     }),
 
-  // Update existing ticket
+  // PUT /api/tickets/:id - Update existing ticket status/priority/details
   updateTicket: (id, updates) =>
     request(`/tickets/${id}`, {
       method: 'PUT',
       body: JSON.stringify(updates),
     }),
 
-  // Delete ticket
+  // DELETE /api/tickets/:id - Delete ticket by ID
   deleteTicket: (id) =>
     request(`/tickets/${id}`, {
       method: 'DELETE',
     }),
 
-  // Add response / comment
+  // POST /api/tickets/:id/responses - Add response / comment
   addResponse: (id, responseData) =>
     request(`/tickets/${id}/responses`, {
       method: 'POST',

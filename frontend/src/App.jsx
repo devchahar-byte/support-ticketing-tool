@@ -9,7 +9,7 @@ import TicketDetailModal from './components/TicketDetailModal';
 import DeleteConfirmModal from './components/DeleteConfirmModal';
 import Toast from './components/Toast';
 import { api } from './services/api';
-import { Loader2, Plus, Inbox } from 'lucide-react';
+import { Loader2, Plus, Inbox, AlertTriangle, RefreshCw } from 'lucide-react';
 
 export default function App() {
   const [tickets, setTickets] = useState([]);
@@ -22,6 +22,7 @@ export default function App() {
     urgent: 0,
   });
   const [loading, setLoading] = useState(true);
+  const [apiError, setApiError] = useState(null);
   const [isApiOnline, setIsApiOnline] = useState(false);
   const [viewMode, setViewMode] = useState('grid'); // 'grid' | 'table'
 
@@ -38,9 +39,16 @@ export default function App() {
   // Modals & Active ticket states
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingTicket, setEditingTicket] = useState(null);
-  const [detailTicket, setDetailTicket] = useState(null);
-  const [deletingTicket, setDeletingTicket] = useState(null);
+  const [formApiErrors, setFormApiErrors] = useState([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Detail view state
+  const [detailTicket, setDetailTicket] = useState(null);
+  const [isDetailOpen, setIsDetailOpen] = useState(false);
+  const [isDetailLoading, setIsDetailLoading] = useState(false);
+
+  // Deleting state
+  const [deletingTicket, setDeletingTicket] = useState(null);
 
   // Toast notification state
   const [toast, setToast] = useState(null);
@@ -59,10 +67,11 @@ export default function App() {
     }
   }, []);
 
-  // Fetch Tickets and Stats
+  // Fetch Tickets and Stats (GET /api/tickets, GET /api/tickets/stats)
   const fetchData = useCallback(async () => {
     try {
       setLoading(true);
+      setApiError(null);
       const [ticketsRes, statsRes] = await Promise.all([
         api.getTickets(filters),
         api.getStats(),
@@ -77,6 +86,7 @@ export default function App() {
       setIsApiOnline(true);
     } catch (error) {
       console.warn('API error, check backend server:', error.message);
+      setApiError(error.message || 'Failed to fetch tickets from REST API');
       setIsApiOnline(false);
     } finally {
       setLoading(false);
@@ -106,42 +116,78 @@ export default function App() {
     });
   };
 
-  // Quick Status change from card/table
-  const handleQuickStatusChange = async (id, newStatus) => {
+  // View Ticket Details via GET /api/tickets/:id
+  const handleViewTicket = async (ticket) => {
     try {
-      await api.updateTicket(id, { status: newStatus });
-      showToast(`Status updated to ${newStatus}`);
-      fetchData();
-      if (detailTicket && detailTicket._id === id) {
-        setDetailTicket((prev) => ({ ...prev, status: newStatus }));
+      setIsDetailOpen(true);
+      setIsDetailLoading(true);
+      setDetailTicket(ticket); // show immediate preview
+      const res = await api.getTicketById(ticket._id);
+      if (res && res.data) {
+        setDetailTicket(res.data);
       }
+    } catch (error) {
+      showToast(error.message || 'Failed to fetch ticket details', 'error');
+    } finally {
+      setIsDetailLoading(false);
+    }
+  };
+
+  // Update Status via PUT /api/tickets/:id
+  const handleUpdateStatus = async (id, newStatus) => {
+    try {
+      const res = await api.updateTicket(id, { status: newStatus });
+      showToast(`Status updated to ${newStatus}`);
+      if (res && res.data) {
+        setDetailTicket(res.data);
+      }
+      fetchData();
     } catch (error) {
       showToast(error.message || 'Failed to update status', 'error');
     }
   };
 
-  // Create or Update ticket submit
+  // Update Priority via PUT /api/tickets/:id
+  const handleUpdatePriority = async (id, newPriority) => {
+    try {
+      const res = await api.updateTicket(id, { priority: newPriority });
+      showToast(`Priority updated to ${newPriority}`);
+      if (res && res.data) {
+        setDetailTicket(res.data);
+      }
+      fetchData();
+    } catch (error) {
+      showToast(error.message || 'Failed to update priority', 'error');
+    }
+  };
+
+  // Create or Update ticket submit (POST /api/tickets or PUT /api/tickets/:id)
   const handleFormSubmit = async (formData) => {
     try {
       setIsSubmitting(true);
+      setFormApiErrors([]);
       if (editingTicket) {
         await api.updateTicket(editingTicket._id, formData);
         showToast('Ticket updated successfully!');
       } else {
         await api.createTicket(formData);
-        showToast('Ticket created successfully!');
+        showToast('Ticket created successfully (201 Created)!');
       }
       setIsFormOpen(false);
       setEditingTicket(null);
       fetchData();
     } catch (error) {
-      showToast(error.message || 'Operation failed', 'error');
+      if (error.errors && error.errors.length > 0) {
+        setFormApiErrors(error.errors);
+      } else {
+        showToast(error.message || 'Operation failed', 'error');
+      }
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  // Delete ticket
+  // Delete ticket via DELETE /api/tickets/:id
   const handleDeleteConfirm = async () => {
     if (!deletingTicket) return;
     try {
@@ -157,11 +203,11 @@ export default function App() {
     }
   };
 
-  // Add response to ticket thread
+  // Add response to ticket thread (POST /api/tickets/:id/responses)
   const handleAddResponse = async (id, responseData) => {
     try {
       const res = await api.addResponse(id, responseData);
-      showToast('Response posted!');
+      showToast('Response posted successfully!');
       if (res && res.data) {
         setDetailTicket(res.data);
       }
@@ -177,6 +223,7 @@ export default function App() {
       <Navbar
         onOpenNewTicket={() => {
           setEditingTicket(null);
+          setFormApiErrors([]);
           setIsFormOpen(true);
         }}
         isApiOnline={isApiOnline}
@@ -191,13 +238,14 @@ export default function App() {
               Support Tickets Dashboard
             </h1>
             <p className="text-sm text-slate-500 mt-1">
-              Manage, prioritize, and resolve customer support issues in real-time.
+              Connected to Express REST API with MongoDB. Manage, prioritize, and resolve issues in real-time.
             </p>
           </div>
 
           <button
             onClick={() => {
               setEditingTicket(null);
+              setFormApiErrors([]);
               setIsFormOpen(true);
             }}
             className="sm:hidden w-full inline-flex items-center justify-center space-x-2 px-4 py-2.5 bg-brand-600 hover:bg-brand-700 text-white text-sm font-semibold rounded-lg shadow-sm"
@@ -206,6 +254,25 @@ export default function App() {
             <span>New Ticket</span>
           </button>
         </div>
+
+        {/* API Error Alert Banner */}
+        {apiError && (
+          <div className="mb-6 p-4 bg-rose-50 border border-rose-200 rounded-xl flex items-center justify-between text-rose-800 text-sm">
+            <div className="flex items-center space-x-2">
+              <AlertTriangle className="w-5 h-5 text-rose-600 shrink-0" />
+              <span>
+                <strong>API Notice:</strong> {apiError}
+              </span>
+            </div>
+            <button
+              onClick={fetchData}
+              className="inline-flex items-center space-x-1 px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-xs font-semibold shadow-xs transition"
+            >
+              <RefreshCw className="w-3.5 h-3.5" />
+              <span>Retry</span>
+            </button>
+          </div>
+        )}
 
         {/* Top Summary Cards */}
         <StatsCards
@@ -223,11 +290,11 @@ export default function App() {
           onToggleViewMode={setViewMode}
         />
 
-        {/* Ticket List or Table */}
+        {/* Loading State */}
         {loading ? (
           <div className="py-20 flex flex-col items-center justify-center text-slate-400 space-y-3">
             <Loader2 className="w-8 h-8 animate-spin text-brand-600" />
-            <p className="text-sm font-medium">Loading tickets...</p>
+            <p className="text-sm font-medium">Loading tickets via GET /api/tickets...</p>
           </div>
         ) : tickets.length > 0 ? (
           viewMode === 'grid' ? (
@@ -236,26 +303,28 @@ export default function App() {
                 <TicketCard
                   key={ticket._id}
                   ticket={ticket}
-                  onView={(t) => setDetailTicket(t)}
+                  onView={handleViewTicket}
                   onEdit={(t) => {
                     setEditingTicket(t);
+                    setFormApiErrors([]);
                     setIsFormOpen(true);
                   }}
                   onDelete={(t) => setDeletingTicket(t)}
-                  onQuickStatusChange={handleQuickStatusChange}
+                  onQuickStatusChange={handleUpdateStatus}
                 />
               ))}
             </div>
           ) : (
             <TicketTable
               tickets={tickets}
-              onView={(t) => setDetailTicket(t)}
+              onView={handleViewTicket}
               onEdit={(t) => {
                 setEditingTicket(t);
+                setFormApiErrors([]);
                 setIsFormOpen(true);
               }}
               onDelete={(t) => setDeletingTicket(t)}
-              onQuickStatusChange={handleQuickStatusChange}
+              onQuickStatusChange={handleUpdateStatus}
             />
           )
         ) : (
@@ -274,6 +343,8 @@ export default function App() {
                 if (filters.search || filters.status !== 'All') {
                   handleResetFilters();
                 } else {
+                  setEditingTicket(null);
+                  setFormApiErrors([]);
                   setIsFormOpen(true);
                 }
               }}
@@ -319,18 +390,25 @@ export default function App() {
         onClose={() => {
           setIsFormOpen(false);
           setEditingTicket(null);
+          setFormApiErrors([]);
         }}
         onSubmit={handleFormSubmit}
         initialData={editingTicket}
         isSubmitting={isSubmitting}
+        apiErrors={formApiErrors}
       />
 
       <TicketDetailModal
-        isOpen={Boolean(detailTicket)}
+        isOpen={isDetailOpen}
         ticket={detailTicket}
-        onClose={() => setDetailTicket(null)}
+        onClose={() => {
+          setIsDetailOpen(false);
+          setDetailTicket(null);
+        }}
         onAddResponse={handleAddResponse}
-        onUpdateStatus={handleQuickStatusChange}
+        onUpdateStatus={handleUpdateStatus}
+        onUpdatePriority={handleUpdatePriority}
+        isLoading={isDetailLoading}
       />
 
       <DeleteConfirmModal
