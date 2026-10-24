@@ -3,6 +3,8 @@
 A complete, full-stack **Support Ticketing Tool** built as an internship capstone project. Designed with modern architecture, responsive UI, clean folder structure, robust REST API, MongoDB database integration, and automated testing.
 
 [![GitHub Repo](https://img.shields.io/badge/GitHub-Repository-blue?logo=github)](https://github.com/devchahar-byte/support-ticketing-tool)
+[![Live Frontend Demo](https://img.shields.io/badge/Live%20Demo-GitHub%20Pages-brightgreen?logo=github)](https://devchahar-byte.github.io/support-ticketing-tool/)
+[![Deployment Guide](https://img.shields.io/badge/Deployment-Render%20%7C%20Vercel%20%7C%20Atlas-purple)](DEPLOYMENT.md)
 [![Node.js](https://img.shields.io/badge/Node.js-v20+-green.svg?logo=node.js)](https://nodejs.org)
 [![React](https://img.shields.io/badge/React-v18-61dafb.svg?logo=react)](https://react.dev)
 [![Express](https://img.shields.io/badge/Express-v4-black.svg?logo=express)](https://expressjs.com)
