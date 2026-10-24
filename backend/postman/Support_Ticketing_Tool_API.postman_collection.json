@@ -1,0 +1,168 @@
+{
+  "info": {
+    "_postman_id": "a918237b-990a-4e2b-bbd0-23a1005b45c9",
+    "name": "Support Ticketing Tool REST API",
+    "description": "Comprehensive API collection for testing Support Ticketing Tool endpoints with query params, CRUD operations, comments/responses, and dashboard metrics.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:5000/api",
+      "type": "string"
+    },
+    {
+      "key": "ticketId",
+      "value": "65f1a1000000000000000001",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Health Check",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/health",
+          "host": ["{{baseUrl}}"],
+          "path": ["health"]
+        },
+        "description": "Check if API server and database connection are active."
+      }
+    },
+    {
+      "name": "Get Dashboard Statistics",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/tickets/stats",
+          "host": ["{{baseUrl}}"],
+          "path": ["tickets", "stats"]
+        },
+        "description": "Fetch status counts (Open, In Progress, Resolved, Closed, Urgent) and category breakdown."
+      }
+    },
+    {
+      "name": "Get All Tickets",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/tickets?page=1&limit=10&sortBy=createdAt&order=desc",
+          "host": ["{{baseUrl}}"],
+          "path": ["tickets"],
+          "query": [
+            { "key": "page", "value": "1" },
+            { "key": "limit", "value": "10" },
+            { "key": "sortBy", "value": "createdAt" },
+            { "key": "order", "value": "desc" }
+          ]
+        },
+        "description": "Retrieve all tickets with optional pagination and sorting."
+      }
+    },
+    {
+      "name": "Filter & Search Tickets",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/tickets?status=Open&priority=Urgent&search=payment",
+          "host": ["{{baseUrl}}"],
+          "path": ["tickets"],
+          "query": [
+            { "key": "status", "value": "Open" },
+            { "key": "priority", "value": "Urgent" },
+            { "key": "search", "value": "payment" }
+          ]
+        },
+        "description": "Filter tickets by status, priority, category or search query."
+      }
+    },
+    {
+      "name": "Get Ticket by ID",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/tickets/{{ticketId}}",
+          "host": ["{{baseUrl}}"],
+          "path": ["tickets", "{{ticketId}}"]
+        },
+        "description": "Fetch full ticket information and conversation thread."
+      }
+    },
+    {
+      "name": "Create New Ticket",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"title\": \"Webhook signature verification failed\",\n  \"description\": \"Unable to verify HMAC signature received on payment event webhooks.\",\n  \"priority\": \"High\",\n  \"category\": \"Technical\",\n  \"customerName\": \"Aman Verma\",\n  \"customerEmail\": \"aman.v@example.com\",\n  \"assignedTo\": \"Vikram Singh\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/tickets",
+          "host": ["{{baseUrl}}"],
+          "path": ["tickets"]
+        },
+        "description": "Create a new support ticket."
+      }
+    },
+    {
+      "name": "Update Ticket",
+      "request": {
+        "method": "PUT",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"status\": \"In Progress\",\n  \"priority\": \"Urgent\",\n  \"assignedTo\": \"Neha Gupta\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/tickets/{{ticketId}}",
+          "host": ["{{baseUrl}}"],
+          "path": ["tickets", "{{ticketId}}"]
+        },
+        "description": "Update ticket status, priority, or assignment."
+      }
+    },
+    {
+      "name": "Add Response / Comment to Ticket",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"message\": \"We investigated the webhook payload and detected a secret key mismatch. Updated docs sent.\",\n  \"author\": \"Neha Gupta\",\n  \"role\": \"Support Agent\",\n  \"statusUpdate\": \"Resolved\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/tickets/{{ticketId}}/responses",
+          "host": ["{{baseUrl}}"],
+          "path": ["tickets", "{{ticketId}}", "responses"]
+        },
+        "description": "Post a reply/comment to the ticket thread and optionally update status."
+      }
+    },
+    {
+      "name": "Delete Ticket",
+      "request": {
+        "method": "DELETE",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/tickets/{{ticketId}}",
+          "host": ["{{baseUrl}}"],
+          "path": ["tickets", "{{ticketId}}"]
+        },
+        "description": "Delete a ticket by ID."
+      }
+    }
+  ]
+}
